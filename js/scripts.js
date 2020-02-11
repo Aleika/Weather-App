@@ -1,6 +1,5 @@
 
 $(function(){
-    var searchText = "Natal";
 
 // *** APIs ***
 // clima, previsão 12 horas e previsão 5 dias: https://developer.accuweather.com/apis
@@ -17,14 +16,13 @@ $(function(){
                 $("#texto_clima").text(data[0].WeatherText);
                 $("#texto_temperatura").html(String(data[0].Temperature.Metric.Value) +"&deg");
           
-                var iconNumb = data[0].WeatherIcon <= 9 ? "0" + String(data[0].WeatherIcon) : String(data[0].WeatherIcon)  ;
+                var iconNumb = data[0].WeatherIcon <= 9 ? "0" + String(data[0].WeatherIcon) : String(data[0].WeatherIcon);
                 var iconeURL = "https://developer.accuweather.com/sites/default/files/"+ iconNumb+"-s.png";
                 $("#icone_clima").css("background-image", "url('" + iconeURL+ "')");
             },
             error: function(){
-                console.log("erro na funcao pegarTempoAtual")
+                gerarErro("Erro ao obter clima atual");
             }
-    
         });
     }
 
@@ -34,7 +32,6 @@ $(function(){
             type: "GET",
             dataType: "json",
             success: function(data){
-
                 try{
                     var texto = data.ParentCity.LocalizedName + ", " + data.AdministrativeArea.LocalizedName + ". " + data.Country.LocalizedName;
                 }catch{
@@ -46,7 +43,7 @@ $(function(){
                 pegarTemperatura12Horas(data.Key);
                             },
             error: function(){
-                console.log("erro")
+                gerarErro("Erro no código do local");
             }
     
         });
@@ -68,22 +65,10 @@ $(function(){
                 pegarLocalUsuario(lat_padrao, long_padrao);
             }
         }).fail(function(){
-            console.log("Erro na função pegarCoordenadasIP")
+            gerarErro("Erro ao tentar obter coordenadas pelo ip");
             pegarLocalUsuario(lat_padrao, long_padrao);
         });
     }
-
-    // $.ajax({
-    //     url: "https://api.mapbox.com/geocoding/v5/mapbox.places/"+searchText+".json?access_token=pk.eyJ1IjoiYWxlaWthIiwiYSI6ImNrNDl3ZGo3eDA5dHczanBlejZqOWFtNTgifQ.xGmPl4mXKnHo8z52bVrPoA",
-    //     dataType: "json",
-    //     type:"GET",
-
-    // }).done(function(data){
-    //     // pegarLocalUsuario();
-    //     console.log(data);
-    // }).fail(function(){
-    //     console.log("erro")
-    // });
 
     function pegarPrevisao5dias(locationKey){
         $.ajax({
@@ -93,12 +78,14 @@ $(function(){
             success: function(data){
                 var max = data.DailyForecasts[0].Temperature.Maximum.Value;
                 var min = data.DailyForecasts[0].Temperature.Minimum.Value;
+    
                 $("#texto_max_min").html(String(min) + "&deg / " + String(max) + "&deg");
 
                 $("#info_5dias").html("");
 
                 var dias_semana = ["Domingo", "Segunda-feira",
                 "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+    
                 for (var i =0; i< data.DailyForecasts.length; i++){
                     var dataHoje = new Date(data.DailyForecasts[i].Date);
                     var dia_semana = dias_semana[dataHoje.getDay()];
@@ -123,12 +110,13 @@ $(function(){
                             </div>
                         </div>
                         `;
+                   
                     $("#info_5dias").append(elementoHTMLDia);
                     elementoHTMLDia = "";
                 }
             },
             error: function(){
-                console.log("Erro na previsão 5 dias!")
+                gerarErro("Erro ao obter a previsão de 5 dias");
             }
           });
     }
@@ -160,7 +148,7 @@ $(function(){
             series: [{
                 showInLegend: false,
                 data: temperaturas
-            }]
+            }],
         });
     }
 
@@ -170,23 +158,84 @@ $(function(){
             type: "GET",
             dataType: "json",
             success: function(data){
-                console.log(data);
                 var temperaturas = [];
                 var horas = [];
+
                 for(var i = 0; i< data.length; i++){
                     var hora = new Date(data[i].DateTime).getHours();
                     temperaturas.push(data[i].Temperature.Value);
                     horas.push(String(hora)+ "h");
 
                     gerarGrafico(horas, temperaturas);
+                    $(".refresh-loader").fadeOut();
                 }
             },
             error: function(){
-                console.log("Erro na função pegarTemperatura12Horas");
+                gerarErro("Erro ao obter a previsão hora a hora");
             }    
           });
     }
 
+    function pegarCoordenadasDaPesquisa(input){
+        $.ajax({
+            url: "https://api.mapbox.com/geocoding/v5/mapbox.places/"+encodeURI(input)+".json?access_token=pk.eyJ1IjoiYWxlaWthIiwiYSI6ImNrNDl3ZGo3eDA5dHczanBlejZqOWFtNTgifQ.xGmPl4mXKnHo8z52bVrPoA",
+            dataType: "json",
+            type:"GET",
+    
+        }).done(function(data){
+
+            try{
+                var long = data.features[0].geometry.coordinates[0];
+                var lat = data.features[0].geometry.coordinates[1];
+                pegarLocalUsuario(lat, long);
+            }catch{
+                gerarErro("Erro na pesquisa de local")
+            }
+            
+        }).fail(function(){
+            gerarErro("Erro na pesquisa de local")
+        });
+    }
+
     pegarCoordenadasIP();
+
+    $("#search-button").click(function(){
+        $(".refresh-loader").show();  
+        var local = $("input#local").val();
+      
+        if(local){
+            pegarCoordenadasDaPesquisa(local);
+        }else{
+            $(".refresh-loader").fadeOut();
+            alert("Local inválido!");
+        }
+    });
+
+    $("input#local").on("keypress", function(e){
+        if(e.keyCode == 13){
+            $(".refresh-loader").show();
+            var local = $("input#local").val();
+
+            if(local){
+                pegarCoordenadasDaPesquisa(local);
+            }else{
+                $(".refresh-loader").fadeOut();
+                alert("Local inválido!");
+            }
+        }
+    });
+
+    function gerarErro(mensagem){
+        if(!mensagem){
+            mensagem = "Erro na solicitação!";
+        }
+        $(".refresh-loader").hide();
+        $("#aviso-erro").text(mensagem);
+        $("#aviso-erro").slideDown();
+
+        window.setTimeout(function(){
+            $("#aviso-erro").slideUp();
+        }, 4000)
+    }
 
 });

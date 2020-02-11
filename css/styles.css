@@ -7,6 +7,21 @@
     height: 100%;
 }
 
+#aviso-erro{
+    display: none;
+    text-align: center;
+    background-color: #d94848;
+    color: white;
+    padding: 20px;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+    z-index: 999;
+    font-size: 14px;
+    font-family: 'Nunito Sans', sans-serif;
+}
+
 .column {
 	padding-left: 8px;
     padding-right: 8px;
